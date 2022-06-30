@@ -1,0 +1,100 @@
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
+<script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
+<style>
+h1 {
+  text-align: center;
+}
+</style>
+<html>
+	<body>
+		<h1 style="align:center">CRYPTO PREDICTO</h1>
+  		<div>
+			{% if user.is_authenticated %}
+  				Hi {{ user.username }}!
+				<p>Aggiungi crypto</p>
+				<form action="/addcrypto/" method="post">
+					{% csrf_token %}
+    					<label for="name">Crypto name: </label>
+    					<input id="name" type="text" name="name">
+					 <label for="symbol">Crypto symbol: </label>
+                                        <input id="symbol" type="text" name="symbol">
+    					<input type="submit" value="ADD">
+				        <input type="button" onclick="chiama()">
+				</form>
+				</br>
+				<p><a href="{% url 'logout' %}">Log Out</a></p>
+			{% else %}
+  				<a href="{% url 'login' %}">Log In</a>
+			{% endif %}
+		</div>
+		<div>
+			{% for crypto, value in tutte.items %}
+			<div style="width:45%; vertical-align:bottom; display:inline-block; margin-left:5%">
+				<div id={{ crypto }}USDT></div>
+			</div>
+			<div style="width:45%; vertical-align:bottom; display:inline-block">
+				<h2>{{ crypto }} Price now:   <span id={{ crypto }}USDTnow> </span> $</h2>
+                                <h3>Predicted close value at {{ value.time }}:00 (GMT): {{ value.pred_hour }} $</h3>
+				<h3>Predicted close value at tomorrow 00:00 (GMT): {{ value.pred }} $</h3>
+				<h3>Percentage variation in 24 hours since today 00:00(GMT): {{ value.var }}%</h3> 
+			</div>			
+			{% endfor %}	
+		</div>
+	</body>
+</html>
+<script type="text/javascript">
+
+// load current chart package
+google.charts.load("current", {
+  packages: ["corechart", "line"]
+});
+
+
+
+function chiama(){
+
+		
+	$.ajax({
+    		url: "/graph/",
+    		type: "POST",
+                csrfmiddlewaretoken: '{{ csrf_token }}',
+    		cache:false,
+    		dataType: "json",
+    		success: function(resp){
+		/*console.log(resp)*/
+		$.each(resp.aggiorna, function(k, v) {
+		    /*console.log(v)*/
+		    let data = new google.visualization.DataTable();
+	            data.addColumn('timeofday', 0);
+		    data.addColumn('number', k)
+		    data.addRows(v);
+		    let chart = new google.visualization.LineChart(
+		    document.getElementById(k)
+        	    );
+		    let options = {
+        	        	title: k,
+                	hAxis: {
+	                	title: "Time (GMT)"
+        	        },
+                	vAxis: {
+	                	title: "Price"
+        		}
+       		    };
+        		
+                    chart.draw(data, options);
+		    let id = k + "now"
+		    let x = document.getElementById(id)
+		    x.innerHTML = v.slice(-1)[0][1]
+                    /*console.log(x)
+                    console.log(v.slice(-1)[0][1])*/
+		});
+		}
+	});
+}
+
+window.onload = chiama;
+setInterval(function() {
+		chiama();
+            }, 5000);
+
+</script>
