@@ -14,7 +14,7 @@ The code is structured as follows:
 #View function new_crypto usable from the web interface only by admin users to add a new crypto to the database with his related coin values.
 #View function graph that displays a dynamic graph of the trend of a given currency in real time.
 
-In the web app ( accessible here: http://18.232.144.163/) it is possible to see the current price of the crypto currencies already saved in the database along with the relative predictions of the close value for the current day. 
+In the web app ( accessible here: http://18.232.144.163/) it is possible to see the current price of the crypto currencies already stored in the database along with the relative predictions of the close value for the current day. 
 
 It is also possible to visualize:
 - the percentage change associated with our prediction, calculated on the close price of the previous day
