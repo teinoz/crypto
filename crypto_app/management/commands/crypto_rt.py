@@ -2,27 +2,47 @@ from django.core.management.base import BaseCommand, CommandError
 from crypto_app.models import Crypto, CoinValue
 from binance.client import Client
 from datetime import datetime, timedelta
+import random
+from paho.mqtt import client as mqtt_client
+import json
 
 class Command(BaseCommand):
-        print("test")
+        print("Reciver")
         def handle(self, *args, **options):
-            api_key='kqgDcbokq1cNVvNd2yNwSGiVBFTSaeFDEa1xdRQmnW0wJ1xH6Mzhc4LoDtCuwUuA'
-            api_secret='tgCrLfs3sQadf9WwQSnfXVXNjSCFPHhyGF13BQMhiZq6thnnoYnQA9mMlWEIiKSg'
-            client = Client(api_key, api_secret)
-            aggiorna = {}
-            crypto = Crypto.objects.all()
-            crypto_list = list(crypto)
-            print(crypto_list)
-            for el in crypto_list:
-                crypto_symbol = str(el.symbol) + "USDT"
-                last_hour_date_time = datetime.now() - timedelta(hours = 1)
-                raw_time = datetime.timestamp(last_hour_date_time)
-                fixed_time = int(str(raw_time).split(".")[0])*1000000
-                print(fixed_time)
-                dati_nuova_crypto = client.get_historical_klines(crypto_symbol, Client.KLINE_INTERVAL_1MINUTE, "1 hour ago UTC")
-                print(dati_nuova_crypto)
-                aggiorna[crypto_symbol] = []
-                for dati in dati_nuova_crypto:
-                    aggiorna[crypto_symbol].append([dati[0], dati[4]])
-            print(aggiorna)
-            return HttpResponse(json.dumps({'aggiorna': aggiorna}), content_type="application/json")
+            broker = 'localhost'
+            port = 1883
+            topic = "/home/binance"
+            client_id = f'python-mqtt-{random.randint(0, 100)}'
+            lista = [12, 23, 12, 54]
+
+            def connect_mqtt() -> mqtt_client:
+                def on_connect(client, userdata, flags, rc):
+                    if rc == 0:
+                        print("Connected to MQTT Broker!")
+                    else:
+                        print("Failed to connect, return code %d\n", rc)
+
+                client = mqtt_client.Client(client_id)
+                client.on_connect = on_connect
+                client.connect(broker, port)
+                return client
+
+            def subscribe(client: mqtt_client):
+                def on_message(client, userdata, msg):
+                    print(f"Received `{msg.payload.decode()}` from `{msg.topic}` topic")
+                    el = json.loads(msg.payload.decode())
+                    crypto_obj = Crypto.objects.get(id = el[-1])
+                    up_data = CoinValue(open_time = int(el[0]), open = float(el[1]), close = float(el[2]), high = float(el[3]),  low = float(el[4]), volume=float(el[5]), close_time=int(el[6]), quote_asset_volume = float(el[7]), number_of_trades = int(el[8]), taker_buy_base_asset_volume = float(el[9]), taker_buy_quote_asset_volume = float(el[10]), crypto = crypto_obj)
+                    up_data.save()
+                    print(up_data)
+                client.subscribe(topic)
+                client.on_message = on_message
+
+
+            def run():
+                client = connect_mqtt()
+                subscribe(client)
+                client.loop_forever()
+
+
+            run()

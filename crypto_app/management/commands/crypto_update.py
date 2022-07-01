@@ -8,13 +8,44 @@ from sklearn.model_selection import train_test_split
 import math
 import json
 import numpy as np
+import random
+from paho.mqtt import client as mqtt_client
+import time
 
 class Command(BaseCommand):
-        print("test")
+        print("Crypto Update")
         def handle(self, *args, **options):
+            #BINANCE API
             api_key='kqgDcbokq1cNVvNd2yNwSGiVBFTSaeFDEa1xdRQmnW0wJ1xH6Mzhc4LoDtCuwUuA'
             api_secret='tgCrLfs3sQadf9WwQSnfXVXNjSCFPHhyGF13BQMhiZq6thnnoYnQA9mMlWEIiKSg'
             client = Client(api_key, api_secret)
+            #MQTT SETUP
+            broker = 'localhost'
+            port = 1883
+            topic = "/home/binance"
+            client_id = f'python-mqtt-{random.randint(0, 1000)}'
+            def connect_mqtt():
+                def on_connect(client, userdata, flags, rc):
+                    if rc == 0:
+                        print("Connected to MQTT Broker!")
+                    else:
+                        print("Failed to connect, return code %d\n", rc)
+
+                client = mqtt_client.Client(client_id)
+                client.on_connect = on_connect
+                client.connect(broker, port)
+                return client
+            def publish(client, binance_list, id_cryp):
+                for el in binance_list:
+                    time.sleep(0.5)
+                    el.append(id_cryp)
+                    msg = json.dumps(el)
+                    result = client.publish(topic, msg)
+                    status = result[0]
+                    if status == 0:
+                        print(f"Send `{msg}` to topic `{topic}`")
+                    else:
+                        print(f"Failed to send message to topic {topic}")
             aggiorna = {}
             crypto = Crypto.objects.all()
             crypto_list = list(crypto)
@@ -25,12 +56,16 @@ class Command(BaseCommand):
                 #print(valori.open)
                 crypto_symbol = str(el.symbol) + "USDT"
                 dati_nuova_crypto = client.get_historical_klines(crypto_symbol, "1h", str(valori.close_time+1))
-                if len(dati_nuova_crypto)>=1:
+                if len(dati_nuova_crypto)>=2:
                     dati_nuova_crypto.pop()
+                    cli = connect_mqtt()
+                    publish(cli, dati_nuova_crypto, el.id)
+"""
                     for el in dati_nuova_crypto:
                         up_data = CoinValue(open_time = int(el[0]), open = float(el[1]), close = float(el[2]), high = float(el[3]),  low = float(el[4]), volume=float(el[5]), close_time=int(el[6]), quote_asset_volume = float(el[7]), number_of_trades = int(el[8]), taker_buy_base_asset_volume = float(el[9]), taker_buy_quote_asset_volume = float(el[10]), crypto = crypto_obj)
                         up_data.save()
                         print(up_data)
+"""
             dict_of_data = {}
             df = {}
             projection = 24
@@ -94,4 +129,3 @@ class Command(BaseCommand):
                 for i in range(len(id_value)):
                     CoinValue.objects.filter(id=id_value[i]).update(prediction_close=linReg_prediction_close[i])
                     CoinValue.objects.filter(id=id_value[i]).update(prediction_open=linReg_prediction_open[i])
-
